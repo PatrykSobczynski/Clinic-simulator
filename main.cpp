@@ -1,7 +1,11 @@
 #include <iostream>
+#include <fstream>
 #include <conio.h>
 #include <stdlib.h>
+#include <string>
+#include <sstream>
 #include <cctype> // to upper case
+#include <ctime> // time
 
 using namespace std;
 
@@ -74,7 +78,7 @@ void addToQueue(tPointer* f, tPointer* l, tPatientData pData) {
         *l = newPatient;
     }
 
-    cout << "Dodano pacjenta: " << pData.name << " " << pData.surname << endl;
+    //cout << "Dodano pacjenta: " << pData.name << " " << pData.surname << endl;
 }
 
 // Tworzenie nowego pacjenta
@@ -100,10 +104,78 @@ void addPatient(tPointer *f, tPointer *l) {
 
     do {
         addToQueue(&(*f), &(*l), newPatient());
+        cout << "Nowy pacjent!" << endl;
         cout << "Czy chcesz dodać kolejnego pacjenta? (T/N)";
         addAnother = toupper(getch());
     } while (addAnother == 'T');
 }
+
+string currentDate() {
+    // obecna data z komputera
+    time_t dateNow = time(0);
+
+    // objekt biblioteki ctime
+    tm *ltm = localtime(&dateNow);
+
+    int year = 1900 + ltm->tm_year;
+    int month = 1 + ltm->tm_mon;
+    int day = ltm->tm_mday;
+
+    // obiekt std::ostringstream o nazwie oss, pomaga stworzyc łańcuch znaków zawierający datę
+    ostringstream oss;
+    oss << year << "-" << month << "-" << day;
+
+    return oss.str();
+}
+
+// Zapis do pliku
+void saveToFile(tPointer first) {
+    string fileName = currentDate() + ".txt";
+
+    ofstream fileQueue(fileName.c_str());
+
+    if(fileQueue.is_open()) {
+        tPointer current = first;
+        while (current != NULL) {
+            fileQueue << "Imie: " << current->patientData.name << endl;
+            fileQueue << "Nazwisko: " << current->patientData.surname << endl;
+            fileQueue << "Rok urodzenia: " << current->patientData.birthDate.day
+                << " " << current->patientData.birthDate.month
+                << " " << current->patientData.birthDate.year;
+            fileQueue << endl;
+
+            current = current->next;
+        }
+        fileQueue.close();
+    } else {
+        cout << "Nie Udalo sie otworzyc pliku." << endl;
+    }
+}
+
+// Odczyt z pliku
+void readFromFile(tPointer* first, tPointer* last) {
+    string fileName = currentDate() + ".txt";
+    string text;
+    ifstream fileQueue(fileName.c_str());
+
+    tPatientData patient;
+
+    while(getline(fileQueue, text)) {
+        if (text.find("Imie: ") != string::npos) {
+            patient.name = text.substr(6); // Odczytujemy imię
+        } else if (text.find("Nazwisko: ") != string::npos) {
+            patient.surname = text.substr(10); // Odczytujemy nazwisko
+        } else if (text.find("Rok urodzenia: ") != string::npos) {
+            stringstream dateStream(text.substr(15)); // Tworzymy strumień dla daty
+            dateStream >> patient.birthDate.day >> patient.birthDate.month >> patient.birthDate.year; // Odczytujemy dzień, miesiąc i rok
+            addToQueue(first, last, patient); // Dodajemy pacjenta do kolejki
+        }
+    }
+
+    fileQueue.close();
+
+}
+
 
 // Menu
 // Operator ** jest nazywany operatorem wskaźnika do wskaźnika
@@ -112,6 +184,8 @@ int menu(tElement **first, tElement **last) {
 
     *first = NULL;
     *last = NULL;
+
+    readFromFile(first, last);
 
     char menuChoice;
     bool running = true;
@@ -130,9 +204,11 @@ int menu(tElement **first, tElement **last) {
         case '1':
             cout << "Opcja 1" << endl;
             addPatient(first, last);
+            saveToFile(*first);
             break;
         case '2':
             cout << "Opcja 2" << endl;
+            displayPatientQueue(*first);
             break;
         case '3':
             cout << "Kolejka" << endl;
@@ -149,7 +225,7 @@ int menu(tElement **first, tElement **last) {
     getch();
     system("CLS"); // Czyszczenie konsoli
     }
-    
+
     return 0;
 
 }
@@ -158,12 +234,11 @@ int menu(tElement **first, tElement **last) {
 int main() {
 
     tPointer first, last;
+    cout << currentDate() << endl; // Dzisiejsza data
     menu(&first, &last); // Operator & służy do pobrania adresu zmiennej
 
     return 0;
 }
-
-
 
 
 
